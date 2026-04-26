@@ -1,0 +1,24 @@
+# 设置所有文本文件使用LF换行符
+* text=auto eol=lf
+
+# 明确指定特定文件类型使用LF换行符
+*.java eol=lf
+*.xml eol=lf
+*.yml eol=lf
+*.yaml eol=lf
+*.properties eol=lf
+*.md eol=lf
+*.txt eol=lf
+*.sh eol=lf
+*.json eol=lf
+*.log eol=lf
+Dockerfile eol=lf
+.gitignore eol=lf
+.gitattributes eol=lf
+.editorconfig eol=lf
+.css eol=lf
+.html eol=lf
+.js eol=lf
+.ts eol=lf
+.vue eol=lf
+.env eol=lf
