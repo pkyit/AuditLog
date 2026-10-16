@@ -63,7 +63,10 @@ jobs:
           echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
           # 列出指纹便于在日志中核对使用了哪把密钥（不泄露私钥内容）
           gpg --list-secret-keys --keyid-format LONG
-      - name: 校验 tag 与 POM 版本一致
+      # 仅 tag 触发时校验：手动触发时 GITHUB_REF_NAME 是分支名而非 tag，
+      # 对其做版本比对必然不相等，会把演练误判为失败。
+      - name: 校验 tag 与 POM 版本一致（仅 tag 触发）
+        if: github.event_name == 'push'
         run: |
           TAG_VERSION="${GITHUB_REF_NAME#v}"
           POM_VERSION=$(mvn -B -ntp -q help:evaluate -Dexpression=project.version -DforceStdout)
@@ -72,9 +75,18 @@ jobs:
             echo "::error::tag 与 POM 版本不一致，拒绝发布（避免发出与 tag 不符的构件）"
             exit 1
           fi
-      - name: 发布
+      - name: 发布（仅 tag 触发）
+        if: github.event_name == 'push'
         run: |
           mvn -B -ntp -Prelease -DskipTests \
             -Dcentral.autoPublish=true \
             -Dcentral.waitUntil=published \
             deploy
+
+      # 手动触发只做演练：完整走一遍构建、Javadoc、GPG 签名与凭据装配，但不上传。
+      # 这样可以在不产生部署记录、不触碰"已发布版本不可修改"约束的前提下验证流水线本身。
+      - name: 演练（仅手动触发，不上传）
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          mvn -B -ntp -Prelease -DskipTests verify
+          echo "演练完成：构建、Javadoc 与签名均已通过，未上传到 Central"
