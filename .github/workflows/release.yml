@@ -4,13 +4,16 @@
 #   * 仅允许 v* 形式的 tag 触发，且发布前先跑完整测试 —— 发布到 Central 的构件
 #     不可修改或删除，误发的代价无法回滚，因此把校验前置。
 #   * 签名私钥与 Portal 凭据只从 GitHub Secrets 读取，绝不写入仓库。
-#   * 使用 environment: release，可在仓库设置中加人工审批，进一步降低误发风险。
+#   * 未使用 environment 审批门禁：仓库 Secrets 为仓库级，加环境反而多一层无实际作用的配置。
+#     若需要人工审批，可在仓库设置中创建 release 环境并给 publish 任务加上 environment 声明。
 #
 # 需要在仓库 Secrets 中配置（Settings → Secrets and variables → Actions）：
 #   MAVEN_CENTRAL_USERNAME  Portal User Token 的 username
 #   MAVEN_CENTRAL_PASSWORD  Portal User Token 的 password
 #   GPG_PRIVATE_KEY         签名私钥（gpg --export-secret-keys --armor <指纹> 的输出）
-#   GPG_PASSPHRASE          私钥口令；无口令时留空字符串
+#
+# 不需要口令类 Secret：签名密钥本身无口令。GitHub 也不允许创建空值 Secret，
+# 因此这里刻意不引用 GPG_PASSPHRASE。
 #
 # 用法：打 tag 并推送即可
 #   git tag -a v1.0.2 -m "release 1.0.2" && git push origin v1.0.2
@@ -43,7 +46,6 @@ jobs:
     name: 发布到 Maven Central
     needs: verify
     runs-on: ubuntu-latest
-    environment: release
     steps:
       - uses: actions/checkout@v4
       - name: 安装 JDK 17
@@ -73,7 +75,6 @@ jobs:
       - name: 发布
         run: |
           mvn -B -ntp -Prelease -DskipTests \
-            -Dgpg.passphrase='${{ secrets.GPG_PASSPHRASE }}' \
             -Dcentral.autoPublish=true \
             -Dcentral.waitUntil=published \
             deploy
