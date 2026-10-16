@@ -21,6 +21,14 @@ $ErrorActionPreference = 'Stop'
 $source = Split-Path -Parent $PSScriptRoot
 $zip = Join-Path $env:TEMP 'auditlog-sync.zip'
 
+# 本脚本同步的是**已提交**内容（git archive HEAD），未提交的改动不会被同步。
+# 若不提示，会出现"改了却同步不过去"的静默偏差，因此这里显式警告。
+$dirty = & git -C $source status --porcelain
+if ($dirty) {
+    Write-Warning "源仓库存在 $((($dirty | Measure-Object).Count)) 项未提交改动，这些改动不会被同步："
+    $dirty | Select-Object -First 10 | ForEach-Object { Write-Warning "  $_" }
+}
+
 if (-not (Test-Path $WorkDir)) {
     Write-Host "克隆 $Remote 到 $WorkDir"
     & git clone --quiet $Remote $WorkDir
