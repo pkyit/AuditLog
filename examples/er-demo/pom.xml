@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  独立消费工程：刻意**不继承** audit-log 的父 POM，也不加入其 <modules>。
+
+  这样依赖 io.github.pkyit:audit-log-spring-boot-starter 只能从 Maven 中央仓库解析，
+  与真实使用者的处境一致；若继承父 POM 或在同一 reactor 中构建，
+  依赖会从本地模块解析，就测不出"已发布制品是否真的可用"。
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>io.github.pkyit.examples</groupId>
+    <artifactId>er-demo</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+    <name>er-demo</name>
+    <description>最小 ER 业务系统：用于在真实 PostgreSQL 上验证 audit-log 框架</description>
+
+    <properties>
+        <maven.compiler.release>17</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <spring.boot.version>3.5.9</spring.boot.version>
+        <audit.log.version>1.0.1</audit.log.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring.boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-jdbc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+        </dependency>
+
+        <!-- 被测对象：已发布到 Maven 中央仓库的审计框架 -->
+        <dependency>
+            <groupId>io.github.pkyit</groupId>
+            <artifactId>audit-log-spring-boot-starter</artifactId>
+            <version>${audit.log.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!--
+              显式指定编译器插件版本：本工程不继承父 POM，若不指定会退回超级 POM 的
+              maven-compiler-plugin 3.1，该版本不认识 maven.compiler.release，
+              会以 Java 5 为目标编译而直接失败。
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <!--
+                      必须开启 -parameters：Spring MVC 依赖它解析 @PathVariable/@RequestParam 的参数名，
+                      审计框架也依赖它取得方法参数名（resourceIdParam 与实参表达式解析）。
+                      缺少该标志时表现为运行期 400（"parameter name information not available"），
+                      而不是编译期报错，排查成本很高。
+                    -->
+                    <parameters>true</parameters>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.3</version>
+            </plugin>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>${spring.boot.version}</version>
+                <!--
+                  本工程不继承 spring-boot-starter-parent，因此 repackage 不会自动绑定，
+                  必须显式声明执行目标，否则产出的是不含依赖的普通 jar。
+                -->
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

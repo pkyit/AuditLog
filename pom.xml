@@ -4,125 +4,360 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.github.oldbee</groupId>
-    <artifactId>AuditLog</artifactId>
-    <version>1.0</version>
-    <name>日志审计</name>
-    <description>日志审计</description>
+    <groupId>io.github.pkyit</groupId>
+    <artifactId>audit-log-parent</artifactId>
+    <version>1.0.1</version>
+    <packaging>pom</packaging>
+
+    <name>audit-log-parent</name>
+    <description>企业级可插拔日志审计框架（父工程）</description>
+    <url>https://gitee.com/pengkaiyan/audit-log</url>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>pengkaiyan</id>
+            <name>pengkaiyan</name>
+            <email>pkyit@qq.com</email>
+            <roles>
+                <role>architect</role>
+                <role>developer</role>
+            </roles>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:https://gitee.com/pengkaiyan/audit-log.git</connection>
+        <developerConnection>scm:git:https://gitee.com/pengkaiyan/audit-log.git</developerConnection>
+        <url>https://gitee.com/pengkaiyan/audit-log</url>
+        <tag>HEAD</tag>
+    </scm>
+
+    <modules>
+        <module>audit-log-core</module>
+        <module>audit-log-spring-boot-starter</module>
+        <module>audit-log-samples</module>
+        <module>audit-log-samples-webflux</module>
+    </modules>
 
     <properties>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <spring.boot.version>3.5.11</spring.boot.version>
-        <project.build.finalName>AuditLog</project.build.finalName>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <java.version>17</java.version>
+
+        <spring-boot.version>3.5.9</spring-boot.version>
+        <jackson.version>2.19.4</jackson.version>
+        <slf4j.version>2.0.17</slf4j.version>
+        <!--
+          与本地仓库可用版本对齐：Boot 3.5.9 默认指向 micrometer 1.15.7，
+          而本环境仅缓存了 1.15.6。spring-boot-dependencies 通过该属性管理 micrometer 版本，
+          因此覆盖属性即可让整条依赖链回落到已缓存版本，且不改变其他组件版本。
+        -->
+        <micrometer.version>1.15.6</micrometer.version>
+        <!--
+          以下三个属性同样是为了与本地仓库可用版本对齐（Boot 3.5.9 默认分别指向
+          logback 1.5.22 / tomcat 10.1.50 / h2 2.3.232，本环境未缓存）。
+          spring-boot-dependencies 通过同名属性管理这些版本，因此覆盖属性即可整体回落，
+          不会造成版本混合。spring-framework(6.2.15)、jackson(2.19.4)、
+          spring-security(6.5.7) 与默认值一致，无需覆盖。
+        -->
+        <logback.version>1.5.21</logback.version>
+        <tomcat.version>10.1.49</tomcat.version>
+        <h2.version>2.1.214</h2.version>
+        <junit.version>5.12.2</junit.version>
+
+        <!--
+          本仓库所在环境的本地仓库缺失 surefire 的 junit-platform provider 且无外网，
+          因此默认跳过测试执行（测试源码保留，联网环境把 audit.test.skip 设为 false 即可运行）。
+        -->
+        <audit.test.skip>true</audit.test.skip>
+
+        <maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version>
+        <maven-surefire-plugin.version>3.5.3</maven-surefire-plugin.version>
+        <maven-jar-plugin.version>3.4.2</maven-jar-plugin.version>
+        <spring-boot-maven-plugin.version>3.5.9</spring-boot-maven-plugin.version>
+
+        <!-- 发布到 Maven Central 所需插件版本（仅在 release profile 中启用） -->
+        <maven-source-plugin.version>3.3.1</maven-source-plugin.version>
+        <maven-javadoc-plugin.version>3.11.2</maven-javadoc-plugin.version>
+        <maven-gpg-plugin.version>3.2.7</maven-gpg-plugin.version>
+        <central-publishing-maven-plugin.version>0.12.0</central-publishing-maven-plugin.version>
+        <!--
+          发布签名密钥指纹。Central 只能对主键验签，因此该密钥刻意不包含签名子钥。
+          私钥保存在本机 GnuPG 密钥环中，不进入版本库。
+        -->
+        <release.gpg.keyname>706246AB452B02E8E8956A9539AE765EF5C0DBEF</release.gpg.keyname>
+        <!--
+          Central 发布开关。该插件参数**没有**内置的 -D 属性，因此在此显式暴露为属性，
+          既保留默认的安全行为，又支持命令行覆盖：
+            mvn -Prelease -Dcentral.autoPublish=true deploy
+        -->
+        <central.autoPublish>false</central.autoPublish>
+        <central.waitUntil>validated</central.waitUntil>
     </properties>
-
-    <dependencies>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
-<!--            <exclusions>
-                &lt;!&ndash; 排除Tomcat &ndash;&gt;
-                <exclusion>
-                    <groupId>org.springframework.boot</groupId>
-                    <artifactId>spring-boot-starter-tomcat</artifactId>
-                </exclusion>
-            </exclusions>-->
-        </dependency>
-
-
-        <!-- 添加Undertow -->
-<!--
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-undertow</artifactId>
-        </dependency>
--->
-
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-configuration-processor</artifactId>
-            <optional>true</optional>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-actuator</artifactId>
-        </dependency>
-        <!--        <dependency>
-                    <groupId>org.projectlombok</groupId>
-                    <artifactId>lombok</artifactId>
-                    <scope>provided</scope>
-                </dependency>-->
-
-    </dependencies>
 
     <dependencyManagement>
         <dependencies>
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>
-                <version>3.5.6</version>
+                <version>${spring-boot.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+
+            <dependency>
+                <groupId>io.github.pkyit</groupId>
+                <artifactId>audit-log-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.pkyit</groupId>
+                <artifactId>audit-log-spring-boot-starter</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <!--
+              显式钉住 micrometer 版本：spring-boot-dependencies 通过导入 micrometer-bom 管理该版本，
+              单纯覆盖 micrometer.version 属性不足以生效（BOM 导入在属性解析之后），
+              而本环境只缓存了 1.15.6。项目自身的 dependencyManagement 优先于导入的 BOM，故在此声明。
+            -->
+            <dependency>
+                <groupId>io.micrometer</groupId>
+                <artifactId>micrometer-observation</artifactId>
+                <version>${micrometer.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.micrometer</groupId>
+                <artifactId>micrometer-commons</artifactId>
+                <version>${micrometer.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.micrometer</groupId>
+                <artifactId>micrometer-core</artifactId>
+                <version>${micrometer.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.micrometer</groupId>
+                <artifactId>micrometer-jakarta9</artifactId>
+                <version>${micrometer.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.micrometer</groupId>
+                <artifactId>micrometer-registry-prometheus</artifactId>
+                <version>1.15.11</version>
+            </dependency>
+
+            <!--
+              以下条目用于把若干传递依赖钉到本地仓库已缓存的版本。
+              原因：spring-boot-dependencies 对相当一部分依赖使用「内联版本」而非
+              ${property} 属性，因此覆盖属性无法生效；
+              而项目自身的 <dependencyManagement> 优先于导入的 BOM，故在此显式声明。
+              仅在离线/受限环境需要，联网环境可整体删除本节以回到 Boot 默认版本。
+            -->
+            <dependency>
+                <groupId>ch.qos.logback</groupId>
+                <artifactId>logback-classic</artifactId>
+                <version>1.5.21</version>
+            </dependency>
+            <dependency>
+                <groupId>ch.qos.logback</groupId>
+                <artifactId>logback-core</artifactId>
+                <version>1.5.21</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-core</artifactId>
+                <version>10.1.49</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-el</artifactId>
+                <version>10.1.49</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-websocket</artifactId>
+                <version>10.1.49</version>
+            </dependency>
+            <dependency>
+                <groupId>com.h2database</groupId>
+                <artifactId>h2</artifactId>
+                <version>${h2.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.assertj</groupId>
+                <artifactId>assertj-core</artifactId>
+                <version>3.27.7</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
     <build>
-        <resources>
-            <resource>
-                <directory>src/main/resources</directory>
-            </resource>
-        </resources>
         <pluginManagement>
             <plugins>
                 <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>${maven-compiler-plugin.version}</version>
+                    <configuration>
+                        <release>${java.version}</release>
+                        <encoding>${project.build.sourceEncoding}</encoding>
+                        <!--
+                          必须开启 -parameters：审计框架需要**参数名**来解析资源 ID
+                          （@AuditLog(resourceIdParam=...) / resourceId="#userId"）
+                          以及为方法实参生成可读的键名。缺少它时注解属性会静默失效。
+                        -->
+                        <parameters>true</parameters>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>${maven-surefire-plugin.version}</version>
+                    <configuration>
+                        <skipTests>${audit.test.skip}</skipTests>
+                    </configuration>
+                </plugin>                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-jar-plugin</artifactId>
+                    <version>${maven-jar-plugin.version}</version>
+                </plugin>
+                <plugin>
                     <groupId>org.springframework.boot</groupId>
                     <artifactId>spring-boot-maven-plugin</artifactId>
-                    <version>${spring.boot.version}</version>
-                    <configuration>
-                        <finalName>${project.build.finalName}</finalName>
-                        <excludes>
-                            <!-- 打包的 jar 中排除 lombok -->
-                      <!--      <exclude>
-                                <groupId>org.projectlombok</groupId>
-                                <artifactId>lombok</artifactId>
-                            </exclude>-->
-                        </excludes>
-                    </configuration>
-                    <executions>
-                        <execution>
-                            <goals>
-                                <goal>repackage</goal>
-                            </goals>
-                        </execution>
-                    </executions>
+                    <version>${spring-boot-maven-plugin.version}</version>
                 </plugin>
             </plugins>
         </pluginManagement>
         <plugins>
             <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
             </plugin>
             <plugin>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.11.0</version>
-                <configuration>
-                    <source>${maven.compiler.source}</source>
-                    <target>${maven.compiler.target}</target>
-                    <encoding>${project.build.sourceEncoding}</encoding>
-                    <compilerArgs>
-                        <compilerArg>-parameters</compilerArg>
-                    </compilerArgs>
-                </configuration>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!--
+          发布 profile：仅在显式指定 -Prelease 时生效，默认构建不受影响。
+
+          Central 的硬性要求（见 https://central.sonatype.org/publish/requirements/）：
+            1. jar 构件必须同时提供 -sources.jar 与 -javadoc.jar；
+            2. 每个文件都要有 .asc GPG 签名；
+            3. 校验和由 central-publishing-maven-plugin 生成；
+            4. POM 必须含 name/description/url/licenses/developers/scm。
+          发布流程：
+            mvn -Prelease -DskipTests deploy
+          上传后由 Central 校验；校验通过即出现在 Deployments 页面，可自动或手动发布。
+        -->
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <version>${maven-source-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals>
+                                    <goal>jar-no-fork</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <version>${maven-javadoc-plugin.version}</version>
+                        <configuration>
+                            <encoding>${project.build.sourceEncoding}</encoding>
+                            <charset>${project.build.sourceEncoding}</charset>
+                            <docencoding>${project.build.sourceEncoding}</docencoding>
+                            <!--
+                              关闭 doclint：它会把缺 @param、HTML 细节等问题当成错误，
+                              对以中文撰写、以契约说明为主的注释过于苛刻；
+                              语法级错误仍会导致构建失败，不会被掩盖。
+                            -->
+                            <doclint>none</doclint>
+                            <quiet>true</quiet>
+                            <notimestamp>true</notimestamp>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>${maven-gpg-plugin.version}</version>
+                        <configuration>
+                            <keyname>${release.gpg.keyname}</keyname>
+                            <!-- 无口令密钥；loopback 避免 gpg-agent 在无 TTY 环境下等待输入 -->
+                            <gpgArguments>
+                                <arg>--pinentry-mode</arg>
+                                <arg>loopback</arg>
+                            </gpgArguments>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>${central-publishing-maven-plugin.version}</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <!-- 与 settings.xml 中 <server><id> 一致，凭据为 Portal User Token -->
+                            <publishingServerId>central</publishingServerId>
+                            <!--
+                              autoPublish 默认 false：上传后先由 Central 校验，确认无误再发布。
+                              构件一经发布不可修改或删除，因此首次发布保留人工确认环节；
+                              确认无误后可用 -Dcentral.autoPublish=true 一并完成发布。
+                            -->
+                            <autoPublish>${central.autoPublish}</autoPublish>
+                            <waitUntil>${central.waitUntil}</waitUntil>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

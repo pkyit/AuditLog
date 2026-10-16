@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.github.pkyit</groupId>
+        <artifactId>audit-log-parent</artifactId>
+        <version>1.0.1</version>
+    </parent>
+
+    <artifactId>audit-log-samples</artifactId>
+    <name>audit-log-samples</name>
+    <description>示例应用：可运行的审计能力演示与端到端验收入口（框架与示例严格分离）</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.github.pkyit</groupId>
+            <artifactId>audit-log-spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-jdbc</artifactId>
+        </dependency>
+        <!--
+          示例应用显式引入 actuator：框架的 actuator 集成是可选依赖，
+          只有宿主自行引入 actuator 时才会生效（这正是「可插拔」的体现）。
+          验收项 A10 需要读取 /actuator/auditLog，因此这里引入。
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!--
+              说明：默认不绑定 spring-boot-maven-plugin:repackage。
+              原因是本离线环境未缓存该插件所需的 buildpack/loader-tools 等依赖，
+              一旦绑定会让 `mvn install` 失败。示例应用通过
+              `mvn -pl audit-log-samples spring-boot:run` 或下方 fat-jar profile 运行。
+            -->
+            <!--
+              示例应用不发布到 Maven Central：Central 面向可复用库，
+              示例属于本仓库的验证载体。skipPublishing 自插件 0.9.0 起按模块独立生效。
+            -->
+            <plugin>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+                <version>${central-publishing-maven-plugin.version}</version>
+                <configuration>
+                    <skipPublishing>true</skipPublishing>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <!--
+          需要可执行 fat jar（生产打包方式）时启用：
+              mvn -Pfat-jar -pl audit-log-samples package
+        -->
+        <profile>
+            <id>fat-jar</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.springframework.boot</groupId>
+                        <artifactId>spring-boot-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>repackage</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>

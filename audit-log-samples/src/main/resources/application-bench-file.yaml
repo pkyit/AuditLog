@@ -1,0 +1,16 @@
+# 场景 D：采集全开 + 真实落盘（生产最接近的成本）+ 防篡改哈希链
+audit:
+  log:
+    store:
+      type: json-file
+      directory: /root/bench/audit
+      max-file-size: 1073741824
+      max-history: 5
+      file-prefix: bench
+    pipeline:
+      queue-capacity: 65536
+      batch-size: 500
+      max-retries: 2
+    chain:
+      enabled: true
+      secret: bench-secret-for-performance-run

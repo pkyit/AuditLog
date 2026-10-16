@@ -1,0 +1,85 @@
+# ============================================================================
+# 压测剖面基线（被各场景 profile 覆盖）
+#
+# 端口统一用 18083，避免与测试机其他服务冲突。
+# 压测期间关闭 actuator 端点暴露以减少无关开销，指标通过审计自身端点读取。
+# ============================================================================
+server:
+  port: 18083
+  tomcat:
+    threads:
+      max: 200
+      min-spare: 20
+    accept-count: 1000
+    max-connections: 10000
+
+spring:
+  main:
+    banner-mode: off
+  datasource:
+    type: com.zaxxer.hikari.HikariDataSource
+    url: jdbc:h2:mem:auditdemo;DB_CLOSE_DELAY=-1;MODE=MySQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ''
+  sql:
+    init:
+      mode: never
+
+logging:
+  level:
+    root: WARN
+    io.github.pkyit.auditlog: WARN
+    AUDIT: WARN
+  pattern:
+    console: "%d{HH:mm:ss.SSS} %-5level %logger{36} - %msg%n"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,auditLog,auditLogMetrics
+  # 压测时关闭 Spring 自身的 HTTP 观测指标：它每个请求都会分配 Micrometer Tag，
+  # 会污染审计框架的测量结果（分配剖析里出现过 ImmutableTag）。
+  observations:
+    http:
+      server:
+        requests:
+          enabled: false
+  metrics:
+    enable:
+      http: false
+
+audit:
+  log:
+    service-name: bench
+    collector:
+      boundary:
+        enabled: true
+      method:
+        enabled: true
+        serialize-arguments: false
+        capture-response-body: false
+    masking:
+      enabled: true
+      max-body-length: 4096
+    store:
+      type: logging
+    pipeline:
+      queue-capacity: 65536
+      batch-size: 500
+      batch-timeout-millis: 200
+      consumer-threads: 1
+      strategy: SPILL
+      max-retries: 3
+    journal:
+      enabled: true
+      directory: /root/bench/journal
+      queue-capacity: 65536
+    chain:
+      enabled: false
+    identity:
+      header-principal-enabled: false
+    validation:
+      fail-on-mismatch: true
+      warn-on-non-compliant-store: true

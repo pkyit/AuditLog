@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>io.github.pkyit</groupId>
+		<artifactId>audit-log-parent</artifactId>
+		<version>1.0.1</version>
+	</parent>
+
+	<artifactId>audit-log-samples-webflux</artifactId>
+	<name>audit-log-samples-webflux</name>
+	<description>WebFlux 宿主示例：用于验证审计框架在反应式环境下的自适配能力</description>
+
+	<dependencies>
+		<!-- 宿主是 WebFlux（Netty），**刻意不引入 spring-boot-starter-web** -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-webflux</artifactId>
+		</dependency>
+
+		<!-- 被验证的框架 starter -->
+		<dependency>
+			<groupId>io.github.pkyit</groupId>
+			<artifactId>audit-log-spring-boot-starter</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+			<!-- 示例应用不发布到 Maven Central（Central 面向可复用库）。 -->
+			<plugin>
+				<groupId>org.sonatype.central</groupId>
+				<artifactId>central-publishing-maven-plugin</artifactId>
+				<version>${central-publishing-maven-plugin.version}</version>
+				<configuration>
+					<skipPublishing>true</skipPublishing>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+</project>

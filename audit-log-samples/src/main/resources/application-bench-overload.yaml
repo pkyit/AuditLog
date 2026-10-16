@@ -1,0 +1,32 @@
+# 过载场景：验证背压策略在队列真正饱和时的行为
+#
+# 前几轮场景虽然出现 queueDepth=43278，但队列容量为 65536，始终未打满，
+# 因此 dropped 一直是 0 —— 也就是说"背压真的触发时会怎样"从未被验证过。
+# 本 profile 把队列压到很小并降低消费能力，强制触发 SPILL，
+# 用真实流量验证：队列满时记录进入本地兜底日志（不丢），而不是被丢弃。
+audit:
+  log:
+    store:
+      type: json-file
+      directory: /root/bench/audit
+      max-file-size: 1073741824
+      max-history: 5
+      file-prefix: overload
+    pipeline:
+      # 故意压小队列 + 降低批处理能力，制造持续溢出
+      queue-capacity: 2048
+      batch-size: 50
+      batch-timeout-millis: 500
+      consumer-threads: 1
+      # SPILL：队列满 -> 写本地兜底日志（不丢、不阻塞业务）
+      strategy: SPILL
+      max-retries: 0
+    journal:
+      enabled: true
+      directory: /root/bench/journal
+      # 兜底日志本身也要足够大，否则会退到"内存缓冲 -> 丢弃"
+      queue-capacity: 262144
+      memory-buffer-limit: 262144
+    chain:
+      enabled: true
+      secret: overload-test-secret

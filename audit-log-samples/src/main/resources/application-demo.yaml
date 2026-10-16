@@ -1,0 +1,11 @@
+# 端到端验收 profile：使用内存存储以便断言审计产物
+audit:
+  log:
+    store:
+      type: logging
+    chain:
+      enabled: true
+      secret: demo-profile-secret
+    journal:
+      enabled: true
+      directory: ./target/demo-journal

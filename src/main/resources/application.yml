@@ -1,8 +1,0 @@
-server:
-  port: 8080
-  shutdown: graceful
-
-logging:
-  level:
-    ApiAuditLog: DEBUG
-    com.github.oldbee: DEBUG

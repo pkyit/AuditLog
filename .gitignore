@@ -5,6 +5,7 @@ target/
 *.log
 logs/
 node_modules/
+.lingma
 ### STS ###
 .apt_generated
 .classpath
@@ -35,3 +36,21 @@ build/
 
 ### Mac OS ###
 .DS_Store
+
+### audit-log 运行时产物（示例应用会生成） ###
+cp.txt
+*-journal/
+deadletter.jsonl
+journal.ckpt
+journal-*.jsonl
+
+### 离线测试运行器的编译输出 ###
+tools/junit-runner/classes/
+tools/commit-msg.txt
+
+tools/remote/prof/
+target/baseline-src.tar.gz
+tools/commit-msg*.txt
+
+logs/
+**/audit-chain-state.properties

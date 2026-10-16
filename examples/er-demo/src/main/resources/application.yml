@@ -1,0 +1,65 @@
+server:
+  port: 18080
+
+spring:
+  application:
+    name: er-demo
+  datasource:
+    url: jdbc:postgresql://10.10.10.101:5432/er_demo
+    username: postgres
+    password: mysecretpassword
+    hikari:
+      maximum-pool-size: 10
+  sql:
+    init:
+      mode: always          # 每次启动执行 schema.sql（语句均为 IF NOT EXISTS）
+      continue-on-error: false
+  jackson:
+    default-property-inclusion: non_null
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,auditLog,auditLogMetrics
+  endpoint:
+    health:
+      show-details: always
+
+audit:
+  log:
+    enabled: true
+    service-name: er-demo
+    store:
+      type: jdbc
+      table-name: audit_log
+      # 演示环境允许自动建表；生产应由迁移脚本管理表结构并保持此项为 false
+      auto-create-table: true
+    chain:
+      enabled: true
+      secret: er-demo-chain-secret
+      state-file: ./target/er-demo-chain-state.properties
+    journal:
+      enabled: true
+      directory: ./target/er-demo-journal
+    pipeline:
+      queue-capacity: 8192
+      strategy: SPILL
+    collector:
+      boundary:
+        enabled: true
+      method:
+        enabled: true
+    masking:
+      enabled: true
+      # 覆盖为可观察的部分掩码，便于验证"掩码确实生效且未抹掉可读性"
+      field-rule-overrides:
+        - "$.phone=PARTIAL"
+        - "$.idCard=PARTIAL"
+      sensitive-headers:
+        - X-Trace-Token
+
+logging:
+  level:
+    io.github.pkyit.auditlog: INFO
+    io.github.pkyit.examples.erdemo: INFO

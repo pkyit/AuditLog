@@ -1,0 +1,164 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: audit-log-samples
+  datasource:
+    # 显式指定连接池：在部分精简运行时（例如手工组装的 classpath）Boot 可能探测不到
+    # 可用的池实现，从而不创建 DataSource；显式声明可消除这种不确定性。
+    type: com.zaxxer.hikari.HikariDataSource
+    url: jdbc:h2:mem:auditdemo;DB_CLOSE_DELAY=-1;MODE=MySQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ''
+  sql:
+    init:
+      mode: always
+
+# ============================================================================
+# 审计框架配置（前缀 audit.log）
+#
+# 本示例为了可断言，使用内存存储 + 自定义主体解析器（见 SamplePrincipalConfiguration）。
+# 生产环境请参考文件末尾的「生产配置建议」。
+# ============================================================================
+audit:
+  log:
+    enabled: true
+    service-name: audit-log-samples
+
+    collector:
+      boundary:
+        enabled: true
+        # 这里刻意**不覆盖** order，使用默认值 -150：
+        # 默认值才是绝大多数使用者实际会遇到的配置，必须纳入持续验证。
+        # （曾因本示例把 order 覆盖为 -100，掩盖了"默认 order 下语义通道静默失效"的缺陷。）
+        record-unmatched: true
+        max-cached-body-bytes: 65536
+      method:
+        enabled: true
+        # 默认不序列化方法实参：避免懒加载异常、循环引用、超大对象与框架参数噪音
+        serialize-arguments: false
+        capture-response-body: false
+
+    masking:
+      enabled: true
+      max-body-length: 4096
+      include-stack-trace: false
+      # 字段路径脱敏：支持 $ 根、* 单层、** 多层、[*] 数组通配
+      sensitive-fields:
+        - "$.password"
+        - "$.oldPassword"
+        - "$.newPassword"
+        - "$.token"
+        - "$.accessToken"
+        - "$.secret"
+        - "$.apiKey"
+        - "$.idCard"
+        - "$.bankCard"
+        - "$.mobile"
+      # 额外需要脱敏的请求头（核心黑名单 Authorization/Cookie/X-Auth-Token 等恒生效，不可被覆盖）
+      sensitive-headers:
+        - "X-Custom-Secret"
+      # 内置内容正则（手机号/身份证/银行卡/邮箱/Bearer 令牌）
+      regex-rules-enabled: true
+
+    store:
+      # logging | json-file | jdbc
+      # 本示例使用 logging 以便观察日志；端到端验收会注入内存存储做断言。
+      type: logging
+      directory: ./logs/audit
+      max-file-size: 134217728
+      max-history: 30
+      file-prefix: audit
+      table-name: audit_log
+      auto-create-table: false
+
+    pipeline:
+      queue-capacity: 8192
+      batch-size: 100
+      batch-timeout-millis: 200
+      consumer-threads: 1
+      # SPILL：队列满时降级写本地兜底日志（不丢数据、不阻塞业务）
+      # 可选：BLOCK / DROP_OLDEST / DROP_NEWEST / FAIL_FAST
+      strategy: SPILL
+      block-timeout-millis: 2000
+      max-retries: 3
+      retry-backoff-millis: 200
+      recent-cache-size: 10000
+
+    journal:
+      enabled: true
+      directory: ./logs/audit-journal
+      max-file-size: 67108864
+      max-history: 20
+      queue-capacity: 8192
+      memory-buffer-limit: 10000
+      replay-on-startup: true
+
+    chain:
+      # 开启后每条记录携带 seq/prevHash/recordHash，可校验历史是否被篡改
+      enabled: true
+      # 生产环境请通过环境变量/密钥管理服务注入，不要写进配置文件
+      secret: sample-dev-secret-change-me
+
+    # 事务回滚时不产生审计记录（避免「记录了没有发生的事」）
+    # 若需要审计「尝试性操作」，设为 false，记录会带 outcome=ROLLBACK 与 rolledBack=true
+    drop-on-rollback: true
+
+    identity:
+      # 默认关闭：从请求头读取身份可被客户端伪造
+      header-principal-enabled: false
+      principal-id-header: X-User-Id
+      tenant-id-header: X-Tenant-Id
+      trace-id-header: traceparent
+      fallback-trace-id-header: X-Trace-Id
+      # 默认不信任代理头；开启时必须配置 trusted-proxies
+      trust-proxy-headers: false
+      trusted-proxies: []
+
+    validation:
+      # 使用者的明确错误（注解写了却不采集）直接让启动失败
+      fail-on-mismatch: true
+      warn-on-unmatched-handler: true
+      warn-on-non-compliant-store: true
+
+    actuator:
+      health-enabled: true
+      metrics-endpoint-enabled: true
+      management-endpoint-enabled: true
+      queue-depth-down-threshold: 100000
+
+logging:
+  level:
+    root: INFO
+    io.github.pkyit.auditlog: INFO
+    # 需要观察每一条审计事件时打开下面这行
+    AUDIT: INFO
+  pattern:
+    console: "%d{HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,auditLog,auditLogMetrics
+  endpoint:
+    health:
+      show-details: always
+
+# ============================================================================
+# 生产配置建议（按需替换上面的 store / identity 段）
+#
+# audit.log.store.type: json-file         # 无需中间件即可获得独立留存
+# audit.log.store.type: jdbc              # 需要 DataSource；建议库账号只授予 INSERT/SELECT
+# audit.log.store.auto-create-table: false # 生产使用正式迁移脚本建表
+#
+# audit.log.identity.trust-proxy-headers: true
+# audit.log.identity.trusted-proxies:
+#   - 10.0.0.0/8
+#   - 172.17.0.0/16
+#
+# audit.log.chain.enabled: true
+# audit.log.chain.secret: ${AUDIT_CHAIN_SECRET}   # 从环境变量/密钥管理注入
+# ============================================================================

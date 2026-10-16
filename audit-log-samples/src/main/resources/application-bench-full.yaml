@@ -1,0 +1,10 @@
+# 场景 C：采集全开 + 内存存储（隔离磁盘 I/O 的影响）
+audit:
+  log:
+    store:
+      type: logging
+    pipeline:
+      queue-capacity: 65536
+      batch-size: 500
+    chain:
+      enabled: false

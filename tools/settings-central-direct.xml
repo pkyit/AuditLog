@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  直连 Maven 中央仓库的 settings，用于验证"已发布制品能否被外部解析"。
+
+  背景：本机全局 settings（M2_HOME/conf/settings.xml）配置了 aliyun 镜像，
+  而缓存代理对新发布坐标的同步存在延迟（实测出现过 POM 已有、JAR 仍 404 的中间状态）。
+  排查这类问题时必须排除代理因素，直连权威仓库才能得到确定结论。
+
+  全局 settings 中镜像的 id 为 mirror，此处复用同一 id 以便覆盖它。
+-->
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 http://maven.apache.org/xsd/settings-1.0.0.xsd">
+    <mirrors>
+        <mirror>
+            <id>mirror</id>
+            <mirrorOf>*</mirrorOf>
+            <name>central-direct</name>
+            <url>https://repo1.maven.org/maven2</url>
+        </mirror>
+    </mirrors>
+</settings>

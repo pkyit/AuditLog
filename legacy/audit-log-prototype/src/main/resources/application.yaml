@@ -1,0 +1,6 @@
+server:
+  port: 8083
+
+logging:
+  level:
+    com.github.pkyit.module.audit: DEBUG

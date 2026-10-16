@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.github.pkyit</groupId>
+        <artifactId>audit-log-parent</artifactId>
+        <version>1.0.1</version>
+    </parent>
+
+    <artifactId>audit-log-spring-boot-starter</artifactId>
+    <name>audit-log-spring-boot-starter</name>
+    <description>审计框架 Spring Boot 自动装配：配置模型、双通道采集、上下文传播、启动校验、Actuator 集成</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.github.pkyit</groupId>
+            <artifactId>audit-log-core</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-webmvc</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!--
+          Reactive（WebFlux）适配：**同样是 optional**。
+          WebFlux 宿主本来就有它们（不会重复引入）；Servlet 宿主完全不会被带上，
+          因此"引入 starter"不会改变宿主的技术栈 —— 这是"容器无感"的前提。
+        -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-webflux</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>io.projectreactor</groupId>
+            <artifactId>reactor-core</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- 主体/租户解析增强：存在则生效，不存在自动降级 -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-core</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- 指标桥接：存在则生效 -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-actuator</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- JDBC 参考存储：存在 DataSource 时可选启用 -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-jdbc</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- 测试 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!--
+          注意：这里**不要**再声明 spring-webflux / reactor-core 的 test 作用域依赖。
+          本模块已在上方以 <optional>true</optional> 声明了它们，optional 依赖对**本模块自身**
+          的编译与测试都是可用的；重复声明会触发 Maven 的
+          "dependencies.dependency ... must be unique" 并且**后者覆盖前者**，
+          结果主源码编译时反而看不到这两个依赖，在无外网的构建机上直接构建失败（实测踩到）。
+        -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>
