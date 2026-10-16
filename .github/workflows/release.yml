@@ -1,0 +1,79 @@
+# 由 tag 触发，把构件发布到 Maven Central。
+#
+# 设计取舍：
+#   * 仅允许 v* 形式的 tag 触发，且发布前先跑完整测试 —— 发布到 Central 的构件
+#     不可修改或删除，误发的代价无法回滚，因此把校验前置。
+#   * 签名私钥与 Portal 凭据只从 GitHub Secrets 读取，绝不写入仓库。
+#   * 使用 environment: release，可在仓库设置中加人工审批，进一步降低误发风险。
+#
+# 需要在仓库 Secrets 中配置（Settings → Secrets and variables → Actions）：
+#   MAVEN_CENTRAL_USERNAME  Portal User Token 的 username
+#   MAVEN_CENTRAL_PASSWORD  Portal User Token 的 password
+#   GPG_PRIVATE_KEY         签名私钥（gpg --export-secret-keys --armor <指纹> 的输出）
+#   GPG_PASSPHRASE          私钥口令；无口令时留空字符串
+#
+# 用法：打 tag 并推送即可
+#   git tag -a v1.0.2 -m "release 1.0.2" && git push origin v1.0.2
+
+name: Release to Maven Central
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:        # 允许手动触发，便于演练
+
+jobs:
+  verify:
+    name: 回归验证
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 安装 JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      # 测试全绿才允许进入发布阶段：Central 上的构件不可撤销
+      - name: 运行测试
+        run: mvn -B -ntp test
+
+  publish:
+    name: 发布到 Maven Central
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
+      - uses: actions/checkout@v4
+      - name: 安装 JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+          # 由 setup-java 生成 settings.xml，写入 Portal 凭据（server id 为 central）
+          server-id: central
+          server-username: MAVEN_CENTRAL_USERNAME
+          server-password: MAVEN_CENTRAL_PASSWORD
+      - name: 导入签名私钥
+        run: |
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
+          # 列出指纹便于在日志中核对使用了哪把密钥（不泄露私钥内容）
+          gpg --list-secret-keys --keyid-format LONG
+      - name: 校验 tag 与 POM 版本一致
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          POM_VERSION=$(mvn -B -ntp -q help:evaluate -Dexpression=project.version -DforceStdout)
+          echo "tag=$TAG_VERSION pom=$POM_VERSION"
+          if [ "$TAG_VERSION" != "$POM_VERSION" ]; then
+            echo "::error::tag 与 POM 版本不一致，拒绝发布（避免发出与 tag 不符的构件）"
+            exit 1
+          fi
+      - name: 发布
+        run: |
+          mvn -B -ntp -Prelease -DskipTests \
+            -Dgpg.passphrase='${{ secrets.GPG_PASSPHRASE }}' \
+            -Dcentral.autoPublish=true \
+            -Dcentral.waitUntil=published \
+            deploy
