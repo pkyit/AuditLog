@@ -229,20 +229,19 @@ mvn -o install -Dmaven.test.skip=true     # 离线环境
 mvn install                                # 联网环境（标准 mvn test 亦可）
 ```
 
-### 8.2 单元测试（62 项）
+### 8.2 单元测试（105 项）
 
 ```bash
-mvn -o test-compile -Dmaven.test.skip=false -DskipTests=true   # 编译测试源码
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/run-tests.ps1
+mvn test
 ```
 
 实测结果：
 
 ```
 ==================== audit-log-core ====================
- 发现用例: 55，通过: 55，失败/异常: 0
+ Tests run: 72, Failures: 0, Errors: 0, Skipped: 0
 ==================== audit-log-spring-boot-starter ====================
- 发现用例: 7，通过: 7，失败/异常: 0
+ Tests run: 33, Failures: 0, Errors: 0, Skipped: 0
 全部单元测试通过。
 ```
 
@@ -257,11 +256,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/run-tests.ps1
 | `AuditPipelineTest` | 存储故障→死信逐条落盘、`dropped=0`、WAL 重放、停机排空、异常隔离、序号单调、策略契约、未启动时不静默 |
 | `AuditCaptureServiceTest` | 主体解析器故障降级为匿名且计数、链路 ID 回退、状态码→结果判定、语义字段填充、采集期脱敏、停机干净 |
 
-> **关于 `mvn test`**：本仓库开发环境离线，且本地 Maven 仓库中 `maven-surefire-plugin`
-> 的 provider 依赖只有空目录、没有 jar。因此测试通过 `tools/run-tests.ps1` 直接调用
-> **JUnit Platform Launcher** 执行（与 surefire 跑的是同一套 JUnit 5 引擎）。
-> 在联网环境中，只需在父 POM 的 `<build><plugins>` 中加入 `maven-surefire-plugin`，
-> 即可用标准 `mvn test` 获得同样结果 —— 测试源码无需任何改动。
+> **关于 `mvn test`**：测试默认执行（`audit.test.skip=false`）。
+> 完全离线的环境若本地仓库缺少 surefire 的 provider，可用
+> `-Daudit.test.skip=true` 跳过，或改用 `tools/run-tests.ps1` ——
+> 它直接调用 JUnit Platform Launcher，与 surefire 跑的是同一套 JUnit 5 引擎。
+> 历史上本仓库因离线而默认跳过测试，这曾导致 CI 的"回归验证"实际是空跑，
+> 1.0.2 起恢复为标准行为。
 
 ### 8.3 端到端验收（11 项，推荐）
 
